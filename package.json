@@ -5,14 +5,19 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon server.js"
+    "start": "nodemon src/server.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@langchain/core": "^0.3.57",
+    "@langchain/openai": "^0.5.11",
+    "@xenova/transformers": "^2.17.2",
     "dotenv": "^16.5.0",
+    "langchain": "^0.3.26",
     "nodemon": "^3.1.10",
     "redis": "^4.7.0",
-    "redis-cli": "^2.1.2"
+    "redis-cli": "^2.1.2",
+    "type": "module"
   }
 }
