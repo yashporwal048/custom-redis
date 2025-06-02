@@ -1,7 +1,9 @@
 const logger = require('../utils/logger')('commandModel');
-const { store, expirationTimes, keyAccessLogs } = require("../utils/persistence.js");
+const { store, expirationTimes } = require("../utils/persistence.js");
+let { keyAccessLogs } = require("../utils/persistence.js");
 const config = require('../config.json');
 const { OpenAIEmbeddings } = require('@langchain/openai');
+const { trackAndRetrain, predictTTL } = require('../utils/trainModel.js');
 require('dotenv').config();
 
 let pipeline;
@@ -95,6 +97,7 @@ const commandHandlers = {
         const value = store[closestKey].value;
         keyAccessLogs[closestKey] = keyAccessLogs[closestKey] || [];
         keyAccessLogs[closestKey].push(Date.now());
+        trackAndRetrain()
         return `$${value.length}\r\n${value}\r\n`;
     },
     // traditional GET
@@ -104,11 +107,12 @@ const commandHandlers = {
         }
         const [key] = args
         if (checkExpiration(key) || !store[key] || store[key].type !== "string") {
-            keyAccessLogs = keyAccessLogs[key] || [];
-            keyAccessLogs[key].push(Date.now())
             return "$-1\r\n";
         }
         const value = store[key].value;
+        keyAccessLogs[key] = keyAccessLogs[key] || [];
+        keyAccessLogs[key].push(Date.now())
+        trackAndRetrain()
         return `$${value.length}\r\n${value}\r\n`;
         ;
     },
@@ -124,13 +128,30 @@ const commandHandlers = {
         delete expirationTimes[key];
         return ":1\r\n";
     },
-    EXPIRE: (args) => {
+    EXPIRE: async (args) => {
         if (args.length < 2) {
             return "-ERR wrong number of arguments for 'expire' command\r\n";
         }
         const [key, seconds] = args;
         if (checkExpiration(key) || !store[key]) {
             return ":0\r\n";
+        }
+        if (seconds.toUpperCase() === "AI") {
+            const accesses = keyAccessLogs[key] || [];
+            if (accesses.length < 2) {
+                return "-ERR Not enough data for AI prediction\r\n";
+            }
+            // Calculate avg interval in hours
+            const timeDiffs = [];
+            for (let i = 0; i < accesses.length - 1; i++) {
+                timeDiffs.push((accesses[i + 1] - accesses[i]) / (1000 * 60 * 60));
+            }
+            const avgDiff = timeDiffs.reduce((a, b) => a + b, 0) / timeDiffs.length;
+            const predictedTTL = await predictTTL(avgDiff);
+            const ttlSeconds = Math.round(predictedTTL * 60 * 60);
+            // ... set expiration as usual ...
+            expirationTimes[key] = Date.now() + ttlSeconds * 1000;
+            return `:${ttlSeconds}\r\n`;
         }
         const expirationTime = Date.now() + parseInt(seconds) * 1000;
         expirationTimes[key] = expirationTime;

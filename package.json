@@ -12,12 +12,12 @@
   "dependencies": {
     "@langchain/core": "^0.3.57",
     "@langchain/openai": "^0.5.11",
+    "@tensorflow/tfjs": "^4.22.0",
     "@xenova/transformers": "^2.17.2",
     "dotenv": "^16.5.0",
     "langchain": "^0.3.26",
     "nodemon": "^3.1.10",
     "redis": "^4.7.0",
-    "redis-cli": "^2.1.2",
-    "type": "module"
+    "redis-cli": "^2.1.2"
   }
 }
